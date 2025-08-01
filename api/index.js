@@ -16,7 +16,7 @@ const port = 3000
 // Inisialisasi API dan Model dengan cara baru
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: "gemini-1.5-flash",
     systemInstruction: "Kamu AI bernama Azhardanii, seorang teman ngobrol yang santai, ramah, solutif, suportif, dan mudah dipahami. Selalu gunakan gaya bahasa kasual. JANGAN memperkenalkan diri dalam percakapan apapun (termasuk respon dari analisa file) kecuali memang ditanyakan.",
 });
 
