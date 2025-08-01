@@ -86,9 +86,9 @@ const handleMultimodalRequest = async (req, res) => {
     }
 }
 
-app.post('/generate-text-from-image', upload.single('image'), handleMultimodalRequest);
-app.post('/generate-from-document', upload.single('document'), handleMultimodalRequest);
-app.post('/generate-from-audio', upload.single('audio'), handleMultimodalRequest);
+app.post('/api/generate-text-from-image', upload.single('image'), handleMultimodalRequest);
+app.post('/api/generate-from-document', upload.single('document'), handleMultimodalRequest);
+app.post('/api/generate-from-audio', upload.single('audio'), handleMultimodalRequest);
 
 if (!process.env.VERCEL) {
     const port = 3000;

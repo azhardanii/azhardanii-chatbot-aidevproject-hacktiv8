@@ -279,9 +279,9 @@ const handleUpload = (inputId, endpoint, type, inputName) => {
   })
 }
 
-handleUpload('image-input', 'generate-text-from-image', 'image', 'image')
-handleUpload('document-input', 'generate-from-document', 'document', 'document')
-handleUpload('audio-input', 'generate-from-audio', 'audio', 'audio')
+handleUpload('image-input', 'api/generate-text-from-image', 'image', 'image')
+handleUpload('document-input', 'api/generate-from-document', 'document', 'document')
+handleUpload('audio-input', 'api/generate-from-audio', 'audio', 'audio')
 
 
 document.getElementById('uploadMenuButton').addEventListener('click', (e) => {
