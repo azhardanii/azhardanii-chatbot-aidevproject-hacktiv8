@@ -33,7 +33,7 @@ const fileToGenerativePart = (file) => {
 app.use(cors())
 app.use(express.json())
 // Pastikan file index.html dan script.js ada di dalam folder 'public'
-app.use(express.static(path.join(__dirname, 'public')))
+app.use(express.static(path.join(__dirname, '..', 'public')))
 
 // Generate dari chat teks
 app.post('/api/chat', async (req, res) => {
@@ -90,7 +90,11 @@ app.post('/generate-text-from-image', upload.single('image'), handleMultimodalRe
 app.post('/generate-from-document', upload.single('document'), handleMultimodalRequest);
 app.post('/generate-from-audio', upload.single('audio'), handleMultimodalRequest);
 
+if (!process.env.VERCEL) {
+    const port = 3000;
+    app.listen(port, () => {
+        console.log(`Server lokal berjalan di http://localhost:${port}`);
+    });
+}
 
-app.listen(port, () => {
-    console.log(`Server berjalan di http://localhost:${port}`)
-})
+export default app;
