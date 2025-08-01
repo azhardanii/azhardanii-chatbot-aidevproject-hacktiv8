@@ -25,77 +25,81 @@ function startPlaceholderRotation() {
 }
 startPlaceholderRotation()
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault()
+const sendSound = new Audio('/sounds/send.mp3');
+const receiveSound = new Audio('/sounds/receive.mp3');
 
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
   if (isFirstChat) {
-    clearInterval(placeholderInterval)
-    input.placeholder = subsequentPlaceholder
-    isFirstChat = false
+    clearInterval(placeholderInterval);
+    input.placeholder = subsequentPlaceholder;
+    input.classList.remove('input-fade-in', 'input-fade-out');
+    input.style.opacity = 1; 
+    isFirstChat = false;
   }
 
-  const userText = input.value.trim()
+  const userText = input.value.trim();
 
-  if (!stagedFile && !userText) return
+  if (!stagedFile && !userText) return;
 
   if (stagedFile) {
     if (!userText) {
-      alert('Tolong masukkan prompt untuk file yang diupload.')
-      return
+      alert('Tolong masukkan prompt untuk file yang diupload.');
+      return;
     }
-    appendFileMessageToChat('user', userText, stagedFile.file, stagedFile.type)
+    appendFileMessageToChat('user', userText, stagedFile.file, stagedFile.type);
     
-    showTypingIndicator()
+    showTypingIndicator();
 
-    const formData = new FormData()
-    formData.append(stagedFile.inputName, stagedFile.file)
-    formData.append('prompt', userText)
+    const formData = new FormData();
+    formData.append(stagedFile.inputName, stagedFile.file);
+    formData.append('prompt', userText);
 
     try {
       const res = await fetch(`/${stagedFile.endpoint}`, {
         method: 'POST',
         body: formData
-      })
-      const data = await res.json()
-      hideTypingIndicator()
-      // <<< PERBAIKAN DI SINI: Menggunakan fungsi appendMessage yang sudah aman
-      appendMessage('bot', data.result) 
+      });
+      const data = await res.json();
+      hideTypingIndicator();
+      appendMessage('bot', data.result, userText); 
     } catch (err) {
-      hideTypingIndicator()
-      appendMessage('bot', `Error uploading ${stagedFile.type}: ${err.message}`)
+      hideTypingIndicator();
+      appendMessage('bot', `Error uploading ${stagedFile.type}: ${err.message}`);
     }
 
-    clearFileStage()
-    input.value = ''
+    clearFileStage();
+    input.value = '';
 
   } else {
-    appendMessage('user', userText)
-    messages.push({ role: 'user', content: userText })
-    input.value = ''
-    showTypingIndicator()
+    appendMessage('user', userText);
+    messages.push({ role: 'user', content: userText });
+    input.value = '';
+    showTypingIndicator();
 
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages })
-      })
+      });
 
-      const data = await response.json()
-      hideTypingIndicator()
+      const data = await response.json();
+      hideTypingIndicator();
 
       if (response.ok) {
-        messages.push({ role: 'bot', content: data.result }) 
-        appendMessage('bot', data.result)
+        messages.push({ role: 'bot', content: data.result });
+        appendMessage('bot', data.result, userText);
       } else {
-        appendMessage('bot', `Error: ${data.message}`)
+        appendMessage('bot', `Error: ${data.message}`);
       }
     } catch (err) {
-      hideTypingIndicator()
-      appendMessage('bot', `Error: ${err.message}`)
+      hideTypingIndicator();
+      appendMessage('bot', `Error: ${err.message}`);
     }
   }
-})
+});
 
 function appendFileMessageToChat(sender, prompt, file, type) {
     const wrapper = document.createElement('div')
@@ -133,20 +137,42 @@ function appendFileMessageToChat(sender, prompt, file, type) {
     wrapper.appendChild(msg)
     chatBox.appendChild(wrapper)
     chatBox.scrollTop = chatBox.scrollHeight
+
+    if (sender === 'user') {
+      sendSound.currentTime = 0;
+      sendSound.play();
+  }
 }
 
-function appendMessage(sender, text) {
+function appendMessage(sender, text, userPrompt = '') {
   const wrapper = document.createElement('div')
   wrapper.className = `w-full flex mb-4 ${sender === 'user' ? 'justify-end' : 'justify-start'}`
 
   const msg = document.createElement('div')
-  msg.className = `message ${sender} animate-slide-up px-4 py-2 rounded-xl max-w-[75%]`
+  msg.className = `message ${sender} animate-slide-up px-4 py-2 rounded-xl max-w-[75%] prose prose-base`;
   
   if (sender === 'bot') {
       if (typeof text === 'string' && text.trim() !== '') {
-          msg.innerHTML = text.replace(/\n/g, '<br>') 
+          let friendlyText = text.replace(/\bSAYA\b/gi, 'aku').replace(/\bANDA\b/gi, 'kamu');
+
+          // <<< LOGIKA PINTAR DIMULAI DI SINI >>>
+          // 1. Definisikan kata kunci yang menandakan pertanyaan tentang nama.
+          const greetingKeywords = ['siapa', 'nama', 'name', 'siapakah'];
+          // 2. Cek apakah prompt pengguna mengandung salah satu kata kunci tersebut.
+          const userAskedForName = greetingKeywords.some(keyword => userPrompt.toLowerCase().includes(keyword));
+
+          // 3. HANYA hapus perkenalan JIKA pengguna TIDAK bertanya tentang nama.
+          if (!userAskedForName) {
+              friendlyText = friendlyText.replace(/^Halo.*?Azhardanii.*?[,.]?\s*/i, '');
+          }
+          // <<< LOGIKA PINTAR SELESAI >>>
+
+          if (friendlyText.length > 0) {
+            friendlyText = friendlyText.charAt(0).toUpperCase() + friendlyText.slice(1);
+          }
+          msg.innerHTML = marked.parse(friendlyText);
       } else {
-          msg.textContent = "Maaf, saya tidak bisa menghasilkan respons teks dari file tersebut."
+          msg.textContent = "Maaf, aku tidak bisa memproses hasil inputanmu itu."
       }
   } else {
       msg.textContent = text
@@ -155,6 +181,14 @@ function appendMessage(sender, text) {
   wrapper.appendChild(msg)
   chatBox.appendChild(wrapper)
   chatBox.scrollTop = chatBox.scrollHeight
+
+  if (sender === 'user') {
+    sendSound.currentTime = 0;
+    sendSound.play();
+  } else {
+      receiveSound.currentTime = 0;
+      receiveSound.play();
+  }
 }
 
 function showTypingIndicator() {
@@ -165,12 +199,12 @@ function showTypingIndicator() {
   const inner = document.createElement('div')
   inner.className = 'message bot flex items-center gap-2 px-4 py-2 rounded-xl'
   inner.innerHTML = `
+    <span>Azhardanii is typing</span>
     <span class="dot-typing">
       <span class="dot"></span>
       <span class="dot"></span>
       <span class="dot"></span>
     </span>
-    <span>Azhardanii is typing...</span>
   `
 
   typingIndicator.appendChild(inner)
@@ -266,7 +300,7 @@ document.addEventListener('click', (e) => {
 const style = document.createElement('style')
 style.textContent = `
 .dot-typing { display: flex; align-items: center; gap: 4px; }
-.dot { width: 6px; height: 6px; border-radius: 9999px; background-color: #fb923c; animation: bounce 1.2s; infinite ease-in-out; }
+.dot { width: 6px; height: 6px; border-radius: 9999px; background-color: #fb923c; animation: bounce 1.2s infinite ease-in-out; }
 .dot:nth-child(2) { animation-delay: 0.2s; }
 .dot:nth-child(3) { animation-delay: 0.4s; }
 @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
