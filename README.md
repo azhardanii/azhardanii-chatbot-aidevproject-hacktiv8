@@ -1,4 +1,4 @@
-<h1 align="center">🤖 Azhardanii Chatbot</h1>
+<h1 align="center">🤖 Azhardanii Chatbot 🤖</h1>
 
 <h2 align="center">
   <a href="https://azhardanii-chatbot.vercel.app/" target="_blank">
