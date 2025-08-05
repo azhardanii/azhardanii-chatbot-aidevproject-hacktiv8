@@ -1,0 +1,130 @@
+import 'dotenv/config';
+import express from 'express';
+import multer from 'multer';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { GoogleGenAI } from '@google/genai';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Inisialisasi aplikasi Express
+const app = express();
+const port = process.env.PORT || 3000;
+
+// Konfigurasi Multer untuk menangani unggahan file di memori
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Validasi keberadaan API Key
+if (!process.env.GEMINI_API_KEY) {
+    throw new Error("Variabel lingkungan GEMINI_API_KEY tidak ditemukan. Harap set di file.env Anda.");
+}
+
+// Inisialisasi klien Google GenAI dengan API Key
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+// Konfigurasi model yang akan digunakan. Memindahkannya ke sini membuatnya mudah diubah.
+const modelConfig = {
+    model: "gemini-2.5-flash",
+};
+
+// Instruksi sistem untuk memberikan persona pada AI.
+const systemInstruction = {
+    parts: "Kamu AI bernama Azhardanii, seorang teman ngobrol yang santai, ramah, solutif, suportif, dan mudah dipahami. Selalu gunakan gaya bahasa kasual. JANGAN memperkenalkan diri dalam percakapan apapun (termasuk respon dari analisa file) kecuali memang ditanyakan.",
+};
+
+const fileToGenerativePart = (file) => {
+  if (!file) return null;
+  return {
+    inlineData: {
+      data: file.buffer.toString("base64"),
+      mimeType: file.mimetype,
+    },
+  };
+};
+
+// Middleware
+app.use(cors()); // Mengizinkan permintaan dari origin yang berbeda
+app.use(express.json()); // Mem-parse body request JSON
+app.use(express.static(path.join(__dirname, '..', 'public'))); // Menyajikan file statis dari direktori public
+
+// Endpoint ini menangani percakapan
+app.post('/api/chat', async (req, res) => {
+    try {
+        const { messages } = req.body;
+        if (!Array.isArray(messages) || messages.length === 0) {
+            return res.status(400).json({ message: "Request body harus berisi array 'messages' yang tidak kosong." });
+        }
+
+        const history = messages.slice(0, -1).map(msg => ({
+            role: msg.role === 'bot'? 'model' : 'user',
+            parts: [{ text: msg.content }]
+        }));
+         
+        const lastMessage = messages[messages.length - 1];
+
+        const chat = ai.chats.create({
+           ...modelConfig,
+            history: history,
+            config: {
+                systemInstruction: systemInstruction
+            }
+        });
+
+        const result = await chat.sendMessage([{ text: lastMessage.content }]);
+         
+        res.json({ result: result.response.text() });
+
+    } catch (err) {
+        console.error("Error di /api/chat:", err);
+        res.status(500).json({ message: err.message });
+    }
+});
+
+const handleMultimodalRequest = async (req, res) => {
+    try {
+        const prompt = req.body?.prompt;
+        if (!prompt) {
+            return res.status(400).json({ message: "Prompt teks tidak terdeteksi di body request." });
+        }
+
+        const file = req.file;
+        if (!file) {
+            return res.status(400).json({ message: "File (gambar/dokumen/audio) tidak terdeteksi." });
+        }
+         
+        const parts = [{ text: prompt }];
+        const filePart = fileToGenerativePart(file);
+        parts.push(filePart);
+         
+        const result = await ai.models.generateContent({
+           ...modelConfig,
+            contents: [{ role: 'user', parts: parts }],
+            config: {
+                systemInstruction: systemInstruction
+            }
+        });
+
+        res.json({ result: result.response.text() });
+
+    } catch (err) {
+        console.error("Error di endpoint multimodal:", err);
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Mendefinisikan rute-rute yang menggunakan handler multimodal
+app.post('/api/generate-text-from-image', upload.single('image'), handleMultimodalRequest);
+app.post('/api/generate-from-document', upload.single('document'), handleMultimodalRequest);
+app.post('/api/generate-from-audio', upload.single('audio'), handleMultimodalRequest);
+
+// Menjalankan server hanya jika tidak di lingkungan Vercel (untuk pengembangan lokal).
+if (!process.env.VERCEL) {
+    app.listen(port, () => {
+        console.log(`Server lokal berjalan di http://localhost:${port}`);
+    });
+}
+
+// Mengekspor aplikasi untuk digunakan oleh lingkungan serverless seperti Vercel.
+export default app;
