@@ -18,7 +18,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // Validasi keberadaan API Key
 if (!process.env.GEMINI_API_KEY) {
-    throw new Error("Variabel lingkungan GEMINI_API_KEY tidak ditemukan. Harap set di file.env Anda.");
+    throw new Error("GEMINI_API_KEY tidak ditemukan. Harap set di file .env");
 }
 
 // Inisialisasi klien Google GenAI dengan API Key
@@ -54,7 +54,7 @@ app.post('/api/chat', async (req, res) => {
     try {
         const { messages } = req.body;
         if (!Array.isArray(messages) || messages.length === 0) {
-            return res.status(400).json({ message: "Request body harus berisi array 'messages' yang tidak kosong." });
+            return res.status(400).json({ message: "Request body kosong." });
         }
 
         const history = messages.slice(0, -1).map(msg => ({
@@ -86,7 +86,7 @@ const handleMultimodalRequest = async (req, res) => {
     try {
         const prompt = req.body?.prompt;
         if (!prompt) {
-            return res.status(400).json({ message: "Prompt teks tidak terdeteksi di body request." });
+            return res.status(400).json({ message: "Prompt teks tidak terdeteksi." });
         }
 
         const file = req.file;
@@ -119,12 +119,12 @@ app.post('/api/generate-text-from-image', upload.single('image'), handleMultimod
 app.post('/api/generate-from-document', upload.single('document'), handleMultimodalRequest);
 app.post('/api/generate-from-audio', upload.single('audio'), handleMultimodalRequest);
 
-// Menjalankan server hanya jika tidak di lingkungan Vercel (untuk pengembangan lokal).
+// Menjalankan server Local
 if (!process.env.VERCEL) {
     app.listen(port, () => {
         console.log(`Server lokal berjalan di http://localhost:${port}`);
     });
 }
 
-// Mengekspor aplikasi untuk digunakan oleh lingkungan serverless seperti Vercel.
 export default app;
+
